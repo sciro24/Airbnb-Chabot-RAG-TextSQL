@@ -19,6 +19,12 @@ RAG_SYSTEM = (
     "menzionati dagli ospiti. Rispondi nella lingua della domanda."
 )
 
+# Modo aggregato (per quartiere): più recensioni di alloggi diversi -> avvisa che varia.
+RAG_SYSTEM_AGG = RAG_SYSTEM + (
+    " Le recensioni provengono da ALLOGGI DIVERSI dello stesso quartiere: dai un quadro "
+    "generale ma chiarisci esplicitamente che l'esperienza varia da alloggio ad alloggio."
+)
+
 
 @dataclass
 class RagResult:
@@ -38,15 +44,22 @@ def build_prompt(query: str, contexts: list[dict]) -> str:
     )
 
 
-def retrieve(query: str, neighbourhood: str | None = None,
+def retrieve(query: str, neighbourhood: str | None = None, listing_id: int | None = None,
+             top_k: int | None = None, rerank_k: int | None = None,
              settings: Settings | None = None) -> tuple[list[dict], str]:
-    """Retrieval VS + rerank locale. Ritorna (contesti, prompt) pronto per la generazione."""
+    """Retrieval VS + rerank locale. Ritorna (contesti, prompt).
+
+    Filtro opzionale per quartiere o annuncio; `top_k`/`rerank_k` sovrascrivono i default
+    (usati nel modo aggregato per quartiere: più recensioni = contesto più ampio).
+    """
     settings = settings or get_settings()
     with METRICS.timer("vector_search"):
         hits = get_vectorstore(settings).search(
-            query, top_k=settings.retrieval_top_k, neighbourhood=neighbourhood)
+            query, top_k=top_k or settings.retrieval_top_k,
+            neighbourhood=neighbourhood, listing_id=listing_id)
     with METRICS.timer("rerank"):
-        reranked = get_reranker(settings).rerank(query, hits, top_k=settings.rerank_top_k)
+        reranked = get_reranker(settings).rerank(
+            query, hits, top_k=rerank_k or settings.rerank_top_k)
     return reranked, build_prompt(query, reranked)
 
 

@@ -40,11 +40,15 @@ class VectorStore:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    def search(self, query_text: str, top_k: int = 20,
-               neighbourhood: str | None = None) -> list[dict]:
-        """Ricerca ibrida (vettoriale + testo) via Vector Search, filtro opzionale per quartiere."""
-        filters = {"neighbourhood": neighbourhood.strip().lower()} if neighbourhood else None
-        return _query(self.settings, query_text, COLUMNS, top_k, filters)
+    def search(self, query_text: str, top_k: int = 20, neighbourhood: str | None = None,
+               listing_id: int | None = None) -> list[dict]:
+        """Ricerca ibrida via Vector Search, con filtro opzionale per quartiere o annuncio."""
+        filters: dict = {}
+        if listing_id is not None:
+            filters["listing_id"] = int(listing_id)
+        if neighbourhood:
+            filters["neighbourhood"] = neighbourhood.strip().lower()
+        return _query(self.settings, query_text, COLUMNS, top_k, filters or None)
 
 
 def get_vectorstore(settings: Settings | None = None) -> VectorStore:
