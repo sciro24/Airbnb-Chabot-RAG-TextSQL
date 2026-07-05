@@ -41,6 +41,11 @@ ENV/
 # ---- Data (interi: input raw + layer generati) ----
 data/
 
+# ---- Frontend (React/Vite) ----
+web/node_modules/
+web/dist/
+web/.vite/
+
 # ---- Generated stores ----
 vectorstore/
 analytics_db/

@@ -11,13 +11,17 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("max_reviews", "20000", "Cap recensioni (0=nessuno)")
+# Campiona N recensioni per annuncio sui M annunci più recensiti: distribuisce le
+# recensioni su molti alloggi (per la mappa) invece di concentrarle sui primi id.
+dbutils.widgets.text("reviews_per_listing", "6", "Recensioni per annuncio")
+dbutils.widgets.text("max_listings", "2000", "Numero di annunci da coprire")
 
 CATALOG, SCHEMA, CITY = "workspace", "airbnb", "rome"
 VOL = f"/Volumes/{CATALOG}/{SCHEMA}/raw/{CITY}"
-CAP = int(dbutils.widgets.get("max_reviews") or 0)
+REV_PER_LISTING = int(dbutils.widgets.get("reviews_per_listing") or 6)
+MAX_LISTINGS = int(dbutils.widgets.get("max_listings") or 2000)
 spark.sql(f"USE CATALOG {CATALOG}"); spark.sql(f"USE SCHEMA {SCHEMA}")
-print("città:", CITY, "| cap:", CAP or "nessuno")
+print("città:", CITY, "| rec/annuncio:", REV_PER_LISTING, "| annunci:", MAX_LISTINGS)
 
 # COMMAND ----------
 
@@ -49,14 +53,23 @@ def read_csv(path, cols):
 
 # COMMAND ----------
 
-# --- BRONZE ---
+# --- BRONZE listings/neighbourhoods ---
 read_csv(f"{VOL}/listings.csv", LISTINGS_COLS).write.mode("overwrite").saveAsTable("bronze_listings")
 read_csv(f"{VOL}/neighbourhoods.csv", NEIGH_COLS).write.mode("overwrite").saveAsTable("bronze_neighbourhoods")
-rev = read_csv(f"{VOL}/reviews.csv.gz", REVIEWS_COLS)
-if CAP:
-    rev = rev.limit(CAP)
+
+# --- BRONZE reviews: N recensioni per annuncio sui M annunci più recensiti ---
+from pyspark.sql import Window
+
+target = (spark.table("bronze_listings").filter(F.col("number_of_reviews") > 0)
+          .orderBy(F.desc("number_of_reviews")).limit(MAX_LISTINGS)
+          .select(F.col("id").alias("listing_id")))
+w = Window.partitionBy("listing_id").orderBy(F.desc("date"))
+rev = (read_csv(f"{VOL}/reviews.csv.gz", REVIEWS_COLS)
+       .withColumn("rn", F.row_number().over(w)).filter(F.col("rn") <= REV_PER_LISTING).drop("rn")
+       .join(target, "listing_id", "inner"))
 rev.write.mode("overwrite").saveAsTable("bronze_reviews")
-print("bronze ok")
+print("bronze reviews:", spark.table("bronze_reviews").count(),
+      "| annunci:", spark.table("bronze_reviews").select("listing_id").distinct().count())
 
 # COMMAND ----------
 
