@@ -91,19 +91,30 @@ def _chat_events(query: str, scope: dict | None):
             yield _sse("token", {"text": chunk})
 
     elif intent == "rag":
-        nbh = None
-        if scope and scope.get("kind") == "neighbourhood":
-            nbh = scope.get("neighbourhood")
-        elif not scope:
-            nbh = services.match_neighbourhood(query, services.neighbourhoods())
-
+        # Alloggio: da scope esplicito (click mappa) o dal nome citato nella domanda.
+        listing = None
         if scope and scope.get("kind") == "listing":
-            contexts, prompt = rag_core.retrieve(query, listing_id=int(scope["listing_id"]))
-            yield _sse("meta", {"intent": intent, "contexts": _ctx_view(contexts)})
+            listing = {"id": int(scope["listing_id"]), "name": scope.get("label")}
+        elif not scope:
+            m = services.resolve_listing(query)
+            if m:
+                listing = {"id": m["id"], "name": m["name"]}
+
+        nbh = None
+        if not listing:
+            if scope and scope.get("kind") == "neighbourhood":
+                nbh = scope.get("neighbourhood")
+            elif not scope:
+                nbh = services.match_neighbourhood(query, services.neighbourhoods())
+
+        if listing:
+            contexts, prompt = rag_core.retrieve(
+                query, listing_id=listing["id"], listing_name=listing["name"])
+            yield _sse("meta", {"intent": intent, "contexts": _ctx_view(contexts), "listing": listing["name"]})
             if not contexts:
-                yield _sse("token", {"text": "Non ci sono recensioni disponibili per questo alloggio."})
+                yield _sse("token", {"text": f"Non ci sono recensioni disponibili per «{listing['name']}»."})
             else:
-                for chunk in llm_client.generate_stream(prompt, system=rag_core.RAG_SYSTEM, temperature=0.3):
+                for chunk in llm_client.generate_stream(prompt, system=rag_core.RAG_SYSTEM_LISTING, temperature=0.3):
                     yield _sse("token", {"text": chunk})
 
         elif nbh:

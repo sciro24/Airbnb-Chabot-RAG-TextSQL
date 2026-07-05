@@ -83,6 +83,7 @@ export default function MapView({ onAsk, onNeighbourhood }) {
           <GeoJSON
             key={(sel || "all") + theme}
             data={geo}
+            interactive={false}
             style={(f) => {
               const active = f.properties.neighbourhood === sel;
               const c = colors[f.properties.neighbourhood] || "#888";
@@ -113,7 +114,7 @@ export default function MapView({ onAsk, onNeighbourhood }) {
               <br />
               {l.neighbourhood} · {l.room_type} · {l.price}€
               <br />
-              <button className="popup-btn" onClick={() => onAsk(l)}>💬 Chiedi al chatbot</button>
+              <button className="popup-btn" onClick={() => onAsk(l)}>Chiedi al chatbot</button>
             </Popup>
           </CircleMarker>
         ))}

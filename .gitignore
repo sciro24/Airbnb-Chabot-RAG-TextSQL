@@ -80,6 +80,9 @@ scratchpad/
 evaluation/results/
 *.bench.json
 
+# ---- Metriche persistite ----
+.metrics.json
+
 # ---- IDE ----
 .idea/
 .vscode/

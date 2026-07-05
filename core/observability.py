@@ -1,20 +1,25 @@
-"""Observability in-memory: timing per fase, contatori intent, cache hit/miss.
+"""Observability: timing per fase, contatori intent, cache hit/miss.
 
-Nessun processo/sink esterno: la sidebar Streamlit legge `snapshot()`.
+Persistente su file (`.metrics.json` in repo root): sopravvive ai riavvii del server,
+si azzera solo con `reset()`.
 """
 from __future__ import annotations
 
+import json
 import threading
 import time
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Iterator
+
+_MET_FILE = Path(__file__).resolve().parent.parent / ".metrics.json"
 
 
 @dataclass
 class Metrics:
-    """Contatori + timing per fase, thread-safe, in memoria."""
+    """Contatori + timing per fase, thread-safe, persistiti su file."""
 
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     intent_counts: dict[str, int] = field(default_factory=lambda: defaultdict(int))
@@ -26,9 +31,36 @@ class Metrics:
         default_factory=lambda: defaultdict(list)
     )
 
+    def _save(self) -> None:
+        """Salva lo stato su file (chiamare con lock acquisito)."""
+        try:
+            _MET_FILE.write_text(json.dumps({
+                "intent_counts": dict(self.intent_counts),
+                "cache_hits": self.cache_hits,
+                "cache_misses": self.cache_misses,
+                "errors": dict(self.errors),
+                "phase_timings": {k: v[-200:] for k, v in self.phase_timings.items()},
+            }))
+        except Exception:
+            pass
+
+    def load(self) -> None:
+        """Carica lo stato dal file, se presente."""
+        try:
+            d = json.loads(_MET_FILE.read_text())
+        except Exception:
+            return
+        with self._lock:
+            self.intent_counts = defaultdict(int, d.get("intent_counts", {}))
+            self.cache_hits = d.get("cache_hits", 0)
+            self.cache_misses = d.get("cache_misses", 0)
+            self.errors = defaultdict(int, d.get("errors", {}))
+            self.phase_timings = defaultdict(list, d.get("phase_timings", {}))
+
     def record_intent(self, intent: str) -> None:
         with self._lock:
             self.intent_counts[intent] += 1
+            self._save()
 
     def record_cache(self, hit: bool) -> None:
         with self._lock:
@@ -36,14 +68,17 @@ class Metrics:
                 self.cache_hits += 1
             else:
                 self.cache_misses += 1
+            self._save()
 
     def record_error(self, where: str) -> None:
         with self._lock:
             self.errors[where] += 1
+            self._save()
 
     def record_phase(self, phase: str, ms: float) -> None:
         with self._lock:
             self.phase_timings[phase].append(ms)
+            self._save()
 
     @contextmanager
     def timer(self, phase: str) -> Iterator[None]:
@@ -85,7 +120,12 @@ class Metrics:
             self.cache_misses = 0
             self.errors.clear()
             self.phase_timings.clear()
+            try:
+                _MET_FILE.unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
-# Process-wide singleton.
+# Singleton di processo, ripristinato dal file all'avvio.
 METRICS = Metrics()
+METRICS.load()

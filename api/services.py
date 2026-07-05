@@ -72,6 +72,32 @@ def match_neighbourhood(query: str, nbhs: list[str]) -> str | None:
     return None
 
 
+import re
+
+# Parole poco distintive da ignorare nel match del nome alloggio.
+_STOP = {"room", "rooms", "apartment", "apt", "flat", "house", "home", "casa", "roma",
+         "rome", "near", "the", "with", "and", "studio", "cozy", "central", "centro",
+         "di", "del", "della", "alloggio", "appartamento", "stanza", "dicono", "prezzo",
+         "dove", "trova", "cosa", "quale", "come", "info", "informazioni"}
+
+
+def _sig_words(s: str) -> set[str]:
+    return {w for w in re.findall(r"[a-zàèéìòùáéíóú0-9]+", s.lower()) if len(w) >= 3 and w not in _STOP}
+
+
+def resolve_listing(query: str) -> dict | None:
+    """Trova l'alloggio citato per nome nella domanda (match per parole significative)."""
+    qw = _sig_words(query)
+    if not qw:
+        return None
+    best, best_score = None, 0
+    for l in listings_with_reviews():
+        score = len(qw & _sig_words(l["name"]))
+        if score > best_score:
+            best, best_score = l, score
+    return best if best_score >= 1 else None
+
+
 def health(probe: bool = False) -> dict:
     """Stato configurazione + (se probe) test live di LLM/embedding/SQL."""
     s = get_settings()

@@ -2,24 +2,24 @@ import { useEffect, useState } from "react";
 import MapView from "../components/MapView.jsx";
 import Chat from "../components/Chat.jsx";
 import { getNeighbourhoods } from "../api.js";
+import { useChat } from "../ChatContext.jsx";
 
 export default function Home() {
-  const [scope, setScope] = useState(null);
-  const [seed, setSeed] = useState(null);
+  const { setScope, send } = useChat();
   const [neighbourhoods, setNeighbourhoods] = useState([]);
 
   useEffect(() => {
     getNeighbourhoods().then(setNeighbourhoods).catch(() => setNeighbourhoods([]));
   }, []);
 
-  // "Chiedi al chatbot" su un annuncio: imposta l'ambito + invia la domanda iniziale.
-  // (il semplice click sul marker apre solo il popup, non invia nulla)
+  // "Chiedi al chatbot" su un annuncio: imposta l'ambito + invia la domanda.
   function askListing(l) {
-    setScope({ kind: "listing", listing_id: l.id, label: l.name });
-    setSeed("Cosa dicono gli ospiti di questo alloggio?");
+    const s = { kind: "listing", listing_id: l.id, label: l.name };
+    setScope(s);
+    send("Cosa dicono gli ospiti di questo alloggio?", s);
   }
 
-  // Dropdown quartiere sulla mappa: allinea l'ambito della chat.
+  // Dropdown quartiere: allinea l'ambito della chat.
   function pickNeighbourhood(n) {
     if (n) setScope({ kind: "neighbourhood", neighbourhood: n });
     else setScope((s) => (s?.kind === "neighbourhood" ? null : s));
@@ -30,9 +30,9 @@ export default function Home() {
       <section className="intro">
         <h1>Esplora gli alloggi Airbnb di Roma</h1>
         <p>
-          Interroga i dati con <b>Analytics</b> (prezzi, quartieri, conteggi) e <b>Recensioni</b>
-          (RAG sulle esperienze degli ospiti). Clicca un <b>punto sulla mappa</b> o seleziona un
-          <b> quartiere</b> per restringere l'ambito, oppure scrivi liberamente nella chat.
+          Interroga i dati con Analytics (prezzi, quartieri, conteggi) e Recensioni
+          (RAG sulle esperienze degli ospiti). Clicca un annuncio sulla mappa o seleziona un
+          quartiere per restringere l'ambito, oppure scrivi liberamente nella chat.
         </p>
       </section>
       <div className="split">
@@ -40,13 +40,7 @@ export default function Home() {
           <MapView onAsk={askListing} onNeighbourhood={pickNeighbourhood} />
         </div>
         <div className="card chat-card">
-          <Chat
-            scope={scope}
-            setScope={setScope}
-            neighbourhoods={neighbourhoods}
-            seed={seed}
-            onSeedConsumed={() => setSeed(null)}
-          />
+          <Chat neighbourhoods={neighbourhoods} />
         </div>
       </div>
     </div>

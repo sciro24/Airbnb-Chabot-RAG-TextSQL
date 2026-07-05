@@ -26,7 +26,8 @@ export default function Metrics() {
 
   if (!metrics || !health) return <div className="page">Carico…</div>;
 
-  const st = (v) => (v === "ok" ? "🟢" : v ? "🔴" : "—");
+  const Dot = ({ v }) =>
+    v == null ? null : <span className={`dot ${v === "ok" ? "ok" : "ko"}`} title={v} />;
   const phaseData = Object.entries(metrics.phases).map(([fase, v]) => ({
     fase, avg: v.avg_ms, count: v.count,
   }));
@@ -41,7 +42,7 @@ export default function Metrics() {
   return (
     <div className="page metrics">
       <div className="metrics-head">
-        <h1>📊 Osservabilità &amp; Metriche</h1>
+        <h1>Osservabilità &amp; Metriche</h1>
         <div className="row">
           <button onClick={refresh}>Aggiorna</button>
           <button onClick={() => resetMetrics().then(refresh)}>Reset</button>
@@ -126,9 +127,9 @@ export default function Metrics() {
           <table>
             <tbody>
               <tr><td>Host</td><td className="mono">{health.host || "—"}</td></tr>
-              <tr><td>LLM</td><td>{health.llm_endpoint} {health.llm && st(health.llm)}</td></tr>
-              <tr><td>Embedding</td><td>{health.embedding_endpoint} {health.embedding && st(health.embedding)}</td></tr>
-              <tr><td>SQL Warehouse</td><td>{health.sql_warehouse ? "🟢 configurato" : "🔴"} {health.sql && st(health.sql)}</td></tr>
+              <tr><td>LLM</td><td>{health.llm_endpoint} <Dot v={health.llm} /></td></tr>
+              <tr><td>Embedding</td><td>{health.embedding_endpoint} <Dot v={health.embedding} /></td></tr>
+              <tr><td>SQL Warehouse</td><td><span className={`dot ${health.sql_warehouse ? "ok" : "ko"}`} /> {health.sql_warehouse ? "configurato" : "assente"} <Dot v={health.sql} /></td></tr>
             </tbody>
           </table>
           <button onClick={probe} disabled={probing}>{probing ? "Test…" : "Testa endpoint (live)"}</button>

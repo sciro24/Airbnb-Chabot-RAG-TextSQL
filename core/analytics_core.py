@@ -86,9 +86,11 @@ def get_schema_description(settings: Settings) -> str:
                 ) if nbhs else ""
     return (
         f"Tabella: {settings.analytics_table} (contiene SOLO alloggi di Roma)\n"
-        "Colonne principali: id, name, host_name, neighbourhood_display (quartiere/municipio), "
-        "room_type, price (double, EUR), minimum_nights, number_of_reviews, reviews_per_month, "
-        "availability_365.\n"
+        "Colonne principali: id, name (nome alloggio), host_name, neighbourhood_display "
+        "(quartiere/municipio), latitude, longitude, room_type, price (double, EUR), "
+        "minimum_nights, number_of_reviews, reviews_per_month, availability_365.\n"
+        "Per un alloggio citato per NOME usa `name ILIKE '%<nome>%'` (per 'dove si trova' "
+        "restituisci neighbourhood_display, latitude, longitude).\n"
         + nbh_line
     )
 
@@ -101,8 +103,10 @@ def _text_to_sql_prompt(query: str, schema_context: str, table: str) -> str:
         "IMPORTANTE: se la domanda cita un quartiere/zona/luogo, DEVI aggiungere la clausola "
         "WHERE con `neighbourhood_display ILIKE '%<nome>%'`.\n\n"
         f"{schema_context}\n"
-        f"Esempio — Domanda: \"prezzo medio all'Eur\" -> "
-        f"SELECT avg(price) FROM {table} WHERE neighbourhood_display ILIKE '%eur%'\n\n"
+        f"Esempio quartiere — \"prezzo medio all'Eur\" -> "
+        f"SELECT avg(price) FROM {table} WHERE neighbourhood_display ILIKE '%eur%'\n"
+        f"Esempio alloggio — \"prezzo di Casa Bianca\" -> "
+        f"SELECT name, price FROM {table} WHERE name ILIKE '%casa bianca%'\n\n"
         f"Domanda: {query}\n\nRestituisci SOLO la query SQL:"
     )
 
