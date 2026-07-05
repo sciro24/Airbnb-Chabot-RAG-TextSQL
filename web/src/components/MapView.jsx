@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { getListings, getGeojson } from "../api.js";
+import { useTheme } from "../ThemeContext.jsx";
 
-// Palette per distinguere i municipi.
 const PALETTE = [
   "#ef476f", "#06d6a0", "#118ab2", "#ffd166", "#8338ec", "#3a86ff", "#fb5607",
   "#ff006e", "#2ec4b6", "#e07a5f", "#9b5de5", "#00bbf9", "#f15bb5", "#43aa8b", "#80ed99",
@@ -20,20 +20,17 @@ const ROME_BOUNDS = [
   [42.05, 12.75],
 ];
 
-// Zooma sul quartiere selezionato (o torna su Roma).
 function Fit({ feature }) {
   const map = useMap();
   useEffect(() => {
-    if (feature) {
-      map.fitBounds(L.geoJSON(feature).getBounds(), { padding: [30, 30] });
-    } else {
-      map.setView(ROME_CENTER, 11);
-    }
+    if (feature) map.fitBounds(L.geoJSON(feature).getBounds(), { padding: [30, 30] });
+    else map.setView(ROME_CENTER, 11);
   }, [feature, map]);
   return null;
 }
 
-export default function MapView({ onSelect, onNeighbourhood }) {
+export default function MapView({ onAsk, onNeighbourhood }) {
+  const { theme } = useTheme();
   const [listings, setListings] = useState([]);
   const [geo, setGeo] = useState(null);
   const [sel, setSel] = useState("");
@@ -56,6 +53,10 @@ export default function MapView({ onSelect, onNeighbourhood }) {
     onNeighbourhood && onNeighbourhood(v || null);
   }
 
+  const tiles = theme === "dark"
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+    : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+
   return (
     <div className="map-wrap">
       <div className="map-toolbar">
@@ -75,25 +76,28 @@ export default function MapView({ onSelect, onNeighbourhood }) {
         maxBoundsViscosity={0.9}
         className="map"
         zoomControl={false}
+        attributionControl={false}
       >
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-          subdomains="abcd"
-          attribution="&copy; OpenStreetMap &copy; CARTO"
-        />
+        <TileLayer url={tiles} subdomains="abcd" />
         {geo && (
           <GeoJSON
-            key={sel || "all"}
+            key={(sel || "all") + theme}
             data={geo}
             style={(f) => {
               const active = f.properties.neighbourhood === sel;
               const c = colors[f.properties.neighbourhood] || "#888";
               return {
-                color: active ? c : "#c7ccd6",
+                color: active ? c : theme === "dark" ? "#3a4150" : "#c7ccd6",
                 weight: active ? 2.5 : 1,
                 fillColor: c,
-                fillOpacity: sel ? (active ? 0.18 : 0.03) : 0.1,
+                fillOpacity: sel ? (active ? 0.2 : 0.03) : 0.12,
               };
+            }}
+            onEachFeature={(feature, layer) => {
+              // Etichetta col nome del quartiere al centro dell'area
+              layer.bindTooltip(feature.properties.neighbourhood, {
+                permanent: true, direction: "center", className: "muni-label", opacity: 1,
+              });
             }}
           />
         )}
@@ -102,20 +106,14 @@ export default function MapView({ onSelect, onNeighbourhood }) {
             key={l.id}
             center={[l.lat, l.lon]}
             radius={sel ? 7 : 4}
-            pathOptions={{
-              color: "#fff",
-              weight: 1,
-              fillColor: colors[l.neighbourhood] || "#888",
-              fillOpacity: 0.9,
-            }}
-            eventHandlers={{ click: () => onSelect(l) }}
+            pathOptions={{ color: "#fff", weight: 1, fillColor: colors[l.neighbourhood] || "#888", fillOpacity: 0.9 }}
           >
             <Popup>
               <b>{l.name}</b>
               <br />
               {l.neighbourhood} · {l.room_type} · {l.price}€
               <br />
-              <button className="popup-btn" onClick={() => onSelect(l)}>💬 Chiedi al chatbot</button>
+              <button className="popup-btn" onClick={() => onAsk(l)}>💬 Chiedi al chatbot</button>
             </Popup>
           </CircleMarker>
         ))}

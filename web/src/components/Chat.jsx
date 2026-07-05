@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { streamChat } from "../api.js";
 
 function ScopeBanner({ scope, onClear }) {
@@ -111,8 +113,12 @@ export default function Chat({ scope, setScope, neighbourhoods, seed, onSeedCons
             )}
             {m.role === "assistant" && !m.answer ? (
               <div className="dots"><span></span><span></span><span></span></div>
+            ) : m.role === "assistant" ? (
+              <div className="bubble markdown">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.answer}</ReactMarkdown>
+              </div>
             ) : (
-              <div className="bubble">{m.text || m.answer}</div>
+              <div className="bubble">{m.text}</div>
             )}
             {m.role === "assistant" && <Details meta={m.meta} />}
           </div>

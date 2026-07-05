@@ -12,8 +12,9 @@ export default function Home() {
     getNeighbourhoods().then(setNeighbourhoods).catch(() => setNeighbourhoods([]));
   }, []);
 
-  // Click su un annuncio: imposta l'ambito + invia una domanda iniziale.
-  function selectListing(l) {
+  // "Chiedi al chatbot" su un annuncio: imposta l'ambito + invia la domanda iniziale.
+  // (il semplice click sul marker apre solo il popup, non invia nulla)
+  function askListing(l) {
     setScope({ kind: "listing", listing_id: l.id, label: l.name });
     setSeed("Cosa dicono gli ospiti di questo alloggio?");
   }
@@ -36,7 +37,7 @@ export default function Home() {
       </section>
       <div className="split">
         <div className="card map-card">
-          <MapView onSelect={selectListing} onNeighbourhood={pickNeighbourhood} />
+          <MapView onAsk={askListing} onNeighbourhood={pickNeighbourhood} />
         </div>
         <div className="card chat-card">
           <Chat
