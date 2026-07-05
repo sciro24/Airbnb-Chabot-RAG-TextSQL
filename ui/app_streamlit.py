@@ -130,6 +130,7 @@ def process(query: str, neighbourhood: str | None) -> dict:
 
 # ----------------------------------------------------------------- pagine -----
 def page_chat() -> None:
+    _load_reranker()  # torch caricato solo qui, non nella pagina Osservabilità
     st.title("🏠 Airbnb RAG + Analytics — Roma")
     st.caption("Doppia pipeline: RAG sulle recensioni (Vector Search) · Text-to-SQL (SQL Warehouse).")
 
@@ -206,7 +207,6 @@ def page_observability() -> None:
 
 
 # ------------------------------------------------------------------ main ------
-_load_reranker()  # precarica il reranker a startup
 st.navigation([
     st.Page(page_chat, title="Chat", icon="💬", default=True),
     st.Page(page_observability, title="Osservabilità", icon="📊"),

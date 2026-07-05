@@ -1,0 +1,4 @@
+# Watcher "poll": evita il crash noto tra il file-watcher di Streamlit e
+# l'introspezione dei moduli torch (torch.classes) quando il reranker è caricato.
+[server]
+fileWatcherType = "poll"
