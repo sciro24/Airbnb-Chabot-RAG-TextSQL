@@ -87,7 +87,7 @@ def _chat_events(query: str, scope: dict | None):
         res, nl_prompt = analytics_core.prepare(query)
         yield _sse("meta", {"intent": intent, "sql": res.sql,
                             "row_count": res.row_count, "preview": res.preview})
-        for chunk in llm_client.generate_stream(nl_prompt, temperature=0.2):
+        for chunk in llm_client.generate_stream(nl_prompt, system=analytics_core.NL_SYSTEM, temperature=0.2):
             yield _sse("token", {"text": chunk})
 
     elif intent == "rag":

@@ -8,4 +8,17 @@ export default defineConfig({
   server: {
     proxy: { "/api": "http://localhost:8000" },
   },
+  build: {
+    // Separa i vendor pesanti in chunk distinti (evita il warning >500KB).
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          leaflet: ["leaflet", "react-leaflet"],
+          charts: ["recharts"],
+          markdown: ["react-markdown", "remark-gfm"],
+        },
+      },
+    },
+  },
 });

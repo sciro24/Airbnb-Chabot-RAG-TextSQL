@@ -60,15 +60,36 @@ def _run_sql(settings: Settings, sql: str) -> tuple[list[str], list[list]]:
     return cols, rows
 
 
+# Cache dei quartieri (neighbourhood_display) per il prompt Text-to-SQL.
+_NBH_CACHE: list[str] | None = None
+
+
+def _neighbourhoods(settings: Settings) -> list[str]:
+    global _NBH_CACHE
+    if _NBH_CACHE is None:
+        try:
+            _, rows = _run_sql(
+                settings, f"SELECT DISTINCT neighbourhood_display FROM {settings.analytics_table} "
+                          "WHERE neighbourhood_display IS NOT NULL ORDER BY 1")
+            _NBH_CACHE = [r[0] for r in rows]
+        except Exception:
+            _NBH_CACHE = []
+    return _NBH_CACHE
+
+
 def get_schema_description(settings: Settings) -> str:
-    """Schema esposto al modello Text-to-SQL (colonne principali di listings_enriched, solo Roma)."""
+    """Schema esposto al modello Text-to-SQL (colonne principali, solo Roma)."""
+    nbhs = _neighbourhoods(settings)
+    nbh_line = ("Quartieri (colonna neighbourhood_display): " + ", ".join(nbhs) + ".\n"
+                "Se l'utente cita un quartiere con nome comune (es. 'eur', 'trastevere', 'centro'), "
+                "mappalo al valore corrispondente filtrando con `neighbourhood_display ILIKE '%<nome>%'`.\n"
+                ) if nbhs else ""
     return (
-        f"Tabella: {settings.analytics_table} (contiene solo listing di Roma)\n"
-        "Colonne principali: id, name, host_name, neighbourhood, neighbourhood_display, "
-        "neighbourhood_group, room_type, price (double, EUR), minimum_nights, "
-        "number_of_reviews, reviews_per_month, availability_365, "
-        "official_neighbourhood_group (municipio).\n"
-        "`neighbourhood` è lowercase; usa `neighbourhood_display` per il display."
+        f"Tabella: {settings.analytics_table} (contiene SOLO alloggi di Roma)\n"
+        "Colonne principali: id, name, host_name, neighbourhood_display (quartiere/municipio), "
+        "room_type, price (double, EUR), minimum_nights, number_of_reviews, reviews_per_month, "
+        "availability_365.\n"
+        + nbh_line
     )
 
 
@@ -76,17 +97,27 @@ def _text_to_sql_prompt(query: str, schema_context: str, table: str) -> str:
     return (
         "Sei un generatore di SQL per Databricks (Spark SQL). Genera UNA sola query SELECT.\n"
         "Regole: solo SELECT, nessun DDL/DML, nessun commento, nessun markdown.\n"
-        f"Interroga esclusivamente la tabella `{table}`.\n\n"
-        f"{schema_context}\n\nDomanda: {query}\n\nRestituisci SOLO la query SQL:"
+        f"Interroga esclusivamente la tabella `{table}`.\n"
+        "IMPORTANTE: se la domanda cita un quartiere/zona/luogo, DEVI aggiungere la clausola "
+        "WHERE con `neighbourhood_display ILIKE '%<nome>%'`.\n\n"
+        f"{schema_context}\n"
+        f"Esempio — Domanda: \"prezzo medio all'Eur\" -> "
+        f"SELECT avg(price) FROM {table} WHERE neighbourhood_display ILIKE '%eur%'\n\n"
+        f"Domanda: {query}\n\nRestituisci SOLO la query SQL:"
     )
 
 
-def _result_to_nl_prompt(query: str, sql: str, preview_md: str) -> str:
-    return (
-        f"Domanda utente: {query}\n\nSQL eseguita:\n{sql}\n\n"
-        f"Risultato (prime righe):\n{preview_md}\n\n"
-        "Rispondi in linguaggio naturale, conciso e grounded sui numeri, nella lingua della domanda."
-    )
+# Il modello che formatta la risposta NON deve rivelare dettagli interni.
+NL_SYSTEM = (
+    "Formatti in linguaggio naturale il risultato di una query sui dati Airbnb di Roma. "
+    "NON menzionare tabelle, colonne, SQL, schema o dettagli tecnici interni. "
+    "Tutti i dati riguardano SOLO Roma: non aggiungere avvisi sul fatto che non siano di Roma. "
+    "Rispondi conciso, grounded sui numeri, nella lingua della domanda."
+)
+
+
+def _result_to_nl_prompt(query: str, preview_md: str) -> str:
+    return f"Domanda: {query}\n\nRisultato:\n{preview_md}\n\nRisposta:"
 
 
 def _strip_fences(sql: str) -> str:
@@ -134,11 +165,11 @@ def prepare(query: str, settings: Settings | None = None) -> tuple[AnalyticsResu
     preview_md = _preview_markdown(columns, rows) if rows else "(nessuna riga)"
     res = AnalyticsResult(answer="", sql=sql, row_count=len(rows), columns=columns,
                           preview=[dict(zip(columns, r)) for r in rows[:20]])
-    return res, _result_to_nl_prompt(query, sql, preview_md)
+    return res, _result_to_nl_prompt(query, preview_md)
 
 
 def answer_analytics(query: str, settings: Settings | None = None) -> AnalyticsResult:
     settings = settings or get_settings()
     res, nl_prompt = prepare(query, settings)
-    res.answer = llm_client.generate(nl_prompt, temperature=0.2, settings=settings)
+    res.answer = llm_client.generate(nl_prompt, system=NL_SYSTEM, temperature=0.2, settings=settings)
     return res
