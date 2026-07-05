@@ -12,10 +12,16 @@ export default function Home() {
     getNeighbourhoods().then(setNeighbourhoods).catch(() => setNeighbourhoods([]));
   }, []);
 
-  // Click su un annuncio nella mappa: imposta l'ambito + invia una domanda iniziale.
+  // Click su un annuncio: imposta l'ambito + invia una domanda iniziale.
   function selectListing(l) {
     setScope({ kind: "listing", listing_id: l.id, label: l.name });
     setSeed("Cosa dicono gli ospiti di questo alloggio?");
+  }
+
+  // Dropdown quartiere sulla mappa: allinea l'ambito della chat.
+  function pickNeighbourhood(n) {
+    if (n) setScope({ kind: "neighbourhood", neighbourhood: n });
+    else setScope((s) => (s?.kind === "neighbourhood" ? null : s));
   }
 
   return (
@@ -23,17 +29,16 @@ export default function Home() {
       <section className="intro">
         <h1>Esplora gli alloggi Airbnb di Roma</h1>
         <p>
-          Due modi per interrogare i dati: <b>Analytics</b> (prezzi, quartieri, conteggi via
-          Text-to-SQL) e <b>Recensioni</b> (RAG semantico sulle recensioni degli ospiti).
-          Clicca un <b>punto sulla mappa</b> per chiedere di quello specifico alloggio, oppure
-          scrivi liberamente nella chat.
+          Interroga i dati con <b>Analytics</b> (prezzi, quartieri, conteggi) e <b>Recensioni</b>
+          (RAG sulle esperienze degli ospiti). Clicca un <b>punto sulla mappa</b> o seleziona un
+          <b> quartiere</b> per restringere l'ambito, oppure scrivi liberamente nella chat.
         </p>
       </section>
       <div className="split">
-        <div className="left">
-          <MapView onSelect={selectListing} />
+        <div className="card map-card">
+          <MapView onSelect={selectListing} onNeighbourhood={pickNeighbourhood} />
         </div>
-        <div className="right">
+        <div className="card chat-card">
           <Chat
             scope={scope}
             setScope={setScope}
