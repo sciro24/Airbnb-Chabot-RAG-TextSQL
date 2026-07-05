@@ -1,0 +1,15 @@
+{
+  "_comment": "Query set etichettato per il retrieval (solo Roma). Copia in query_set.json e completa relevant_listing_ids (~20-30 query). relevant_listing_ids = listing_id le cui recensioni dovrebbero essere recuperate per la query.",
+  "queries": [
+    {
+      "id": "rome-001",
+      "query": "appartamento pulito e silenzioso vicino al centro",
+      "relevant_listing_ids": [2737, 11834]
+    },
+    {
+      "id": "rome-002",
+      "query": "host disponibile e quartiere tranquillo",
+      "relevant_listing_ids": [12398]
+    }
+  ]
+}

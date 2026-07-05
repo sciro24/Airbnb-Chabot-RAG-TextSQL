@@ -1,0 +1,21 @@
+# App locale: UI + client Databricks (storage/vector/SQL/LLM sono su Databricks).
+# L'ETL gira sui notebook in databricks/ (Spark + langdetect installati là).
+
+# ---- Reranker locale (CrossEncoder, MPS) ----
+sentence-transformers>=3.0.0
+torch>=2.2.0
+
+# ---- Client HTTP verso Databricks (serving, Vector Search, SQL API) ----
+requests>=2.31.0
+tenacity>=8.2.0
+
+# ---- Config / secrets ----
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+
+# ---- UI (st.navigation multipagina richiede >=1.36) ----
+streamlit>=1.40.0
+
+# ---- Eval ----
+numpy>=1.26.0
