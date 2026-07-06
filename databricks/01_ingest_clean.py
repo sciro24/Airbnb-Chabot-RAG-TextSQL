@@ -11,17 +11,20 @@
 
 # COMMAND ----------
 
-# Campiona N recensioni per annuncio sui M annunci più recensiti: distribuisce le
-# recensioni su molti alloggi (per la mappa) invece di concentrarle sui primi id.
+# Campionamento STRATIFICATO per quartiere: per ogni municipio prende i K annunci più
+# recensiti, e per ognuno N recensioni. Così la mappa è bilanciata tra i quartieri invece
+# di concentrarsi sul Centro Storico (che ha molti più annunci).
 dbutils.widgets.text("reviews_per_listing", "6", "Recensioni per annuncio")
-dbutils.widgets.text("max_listings", "2000", "Numero di annunci da coprire")
+dbutils.widgets.text("listings_per_neighbourhood", "150", "Annunci per quartiere")
 
 CATALOG, SCHEMA, CITY = "workspace", "airbnb", "rome"
 VOL = f"/Volumes/{CATALOG}/{SCHEMA}/raw/{CITY}"
 REV_PER_LISTING = int(dbutils.widgets.get("reviews_per_listing") or 6)
-MAX_LISTINGS = int(dbutils.widgets.get("max_listings") or 2000)
+LISTINGS_PER_NBH = int(dbutils.widgets.get("listings_per_neighbourhood") or 150)
+# Prezzi validi (fuori range = junk: es. host che bloccano il calendario con 9000€).
+PRICE_MIN, PRICE_MAX = 10.0, 5000.0
 spark.sql(f"USE CATALOG {CATALOG}"); spark.sql(f"USE SCHEMA {SCHEMA}")
-print("città:", CITY, "| rec/annuncio:", REV_PER_LISTING, "| annunci:", MAX_LISTINGS)
+print("città:", CITY, "| rec/annuncio:", REV_PER_LISTING, "| annunci/quartiere:", LISTINGS_PER_NBH)
 
 # COMMAND ----------
 
@@ -57,26 +60,32 @@ def read_csv(path, cols):
 read_csv(f"{VOL}/listings.csv", LISTINGS_COLS).write.mode("overwrite").saveAsTable("bronze_listings")
 read_csv(f"{VOL}/neighbourhoods.csv", NEIGH_COLS).write.mode("overwrite").saveAsTable("bronze_neighbourhoods")
 
-# --- BRONZE reviews: N recensioni per annuncio sui M annunci più recensiti ---
+# --- BRONZE reviews: stratificato per quartiere (K annunci/quartiere, N recensioni/annuncio) ---
 from pyspark.sql import Window
 
+# Top K annunci per ciascun quartiere (per numero di recensioni)
+w_nbh = Window.partitionBy("neighbourhood").orderBy(F.desc("number_of_reviews"))
 target = (spark.table("bronze_listings").filter(F.col("number_of_reviews") > 0)
-          .orderBy(F.desc("number_of_reviews")).limit(MAX_LISTINGS)
+          .withColumn("rk", F.row_number().over(w_nbh))
+          .filter(F.col("rk") <= LISTINGS_PER_NBH)
           .select(F.col("id").alias("listing_id")))
-w = Window.partitionBy("listing_id").orderBy(F.desc("date"))
+# N recensioni più recenti per ciascun annuncio target
+w_rev = Window.partitionBy("listing_id").orderBy(F.desc("date"))
 rev = (read_csv(f"{VOL}/reviews.csv.gz", REVIEWS_COLS)
-       .withColumn("rn", F.row_number().over(w)).filter(F.col("rn") <= REV_PER_LISTING).drop("rn")
-       .join(target, "listing_id", "inner"))
+       .join(target, "listing_id", "inner")
+       .withColumn("rn", F.row_number().over(w_rev)).filter(F.col("rn") <= REV_PER_LISTING).drop("rn"))
 rev.write.mode("overwrite").saveAsTable("bronze_reviews")
 print("bronze reviews:", spark.table("bronze_reviews").count(),
       "| annunci:", spark.table("bronze_reviews").select("listing_id").distinct().count())
 
 # COMMAND ----------
 
-# --- SILVER listings: price->double, normalizza neighbourhood, drop null chiave ---
-price = F.regexp_replace(F.col("price").cast("string"), r"[$,]", "")
+# --- SILVER listings: price->double (junk->null), normalizza neighbourhood, drop null chiave ---
+price = F.regexp_replace(F.col("price").cast("string"), r"[$,]", "").cast("double")
+# Prezzi fuori [PRICE_MIN, PRICE_MAX] = anomali -> null (esclusi dalle analytics)
+price = F.when((price >= PRICE_MIN) & (price <= PRICE_MAX), price).otherwise(None)
 lc = (spark.table("bronze_listings")
-      .withColumn("price", F.when(price == "", None).otherwise(price).cast("double"))
+      .withColumn("price", price)
       .withColumn("neighbourhood_display", F.col("neighbourhood"))
       .withColumn("neighbourhood", F.lower(F.trim("neighbourhood")))
       .withColumn("neighbourhood_group", F.lower(F.trim("neighbourhood_group")))
