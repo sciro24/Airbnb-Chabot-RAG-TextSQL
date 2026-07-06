@@ -50,7 +50,9 @@ def listings_with_reviews() -> list[dict]:
         out = []
         for r in rows:
             d = dict(zip(cols, r))
-            d["id"] = int(d["id"])
+            # id come STRINGA: alcuni listing_id superano 2^53 e JavaScript li
+            # arrotonderebbe se fossero numeri JSON (perdendo il match nel Vector Search).
+            d["id"] = str(d["id"])
             d["lat"] = float(d["lat"]); d["lon"] = float(d["lon"])
             d["price"] = float(d["price"]) if d["price"] is not None else None
             out.append(d)
