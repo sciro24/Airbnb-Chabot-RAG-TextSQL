@@ -29,9 +29,9 @@ const EXAMPLES = {
   },
 };
 
-function Suggestions({ onPick }) {
+function SuggestionsContent({ onPick }) {
   return (
-    <div className="suggestions">
+    <>
       <p className="sugg-intro">Non sai da dove iniziare? Prova una di queste domande:</p>
       {Object.values(EXAMPLES).map((g) => (
         <div key={g.title} className="sugg-group">
@@ -43,6 +43,26 @@ function Suggestions({ onPick }) {
           </div>
         </div>
       ))}
+    </>
+  );
+}
+
+// Inline (chat vuota): riempie la chat senza scroll.
+function SuggestionsInline({ onPick }) {
+  return <div className="suggestions inline"><SuggestionsContent onPick={onPick} /></div>;
+}
+
+// Popup (chat già avviata + click su "/"): overlay centrato, tutto visibile.
+function SuggestionsModal({ onPick, onClose }) {
+  return (
+    <div className="sugg-overlay" onClick={onClose}>
+      <div className="sugg-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sugg-modal-head">
+          <span>Domande di esempio</span>
+          <button className="link" onClick={onClose}><X size={16} /></button>
+        </div>
+        <SuggestionsContent onPick={onPick} />
+      </div>
     </div>
   );
 }
@@ -103,6 +123,9 @@ export default function Chat({ neighbourhoods }) {
         )}
       </div>
       <div className="messages">
+        {messages.length === 0 && (
+          <SuggestionsInline onPick={(q) => send(q)} />
+        )}
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
             {m.role === "assistant" && m.intent && <div className="intent">{m.intent}</div>}
@@ -130,8 +153,9 @@ export default function Chat({ neighbourhoods }) {
         )}
         <div ref={endRef} />
       </div>
-      {(messages.length === 0 || showSugg) && (
-        <Suggestions onPick={(q) => { send(q); setShowSugg(false); }} />
+      {showSugg && messages.length > 0 && (
+        <SuggestionsModal onClose={() => setShowSugg(false)}
+          onPick={(q) => { send(q); setShowSugg(false); }} />
       )}
       <form className="composer" onSubmit={(e) => { e.preventDefault(); send(input); setInput(""); }}>
         <input value={input} onChange={(e) => setInput(e.target.value)}

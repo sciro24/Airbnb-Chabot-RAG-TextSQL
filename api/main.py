@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -183,5 +183,14 @@ def api_chat(req: ChatRequest):
 
 
 # --------------------------------------------------------- frontend statico ---
+# SPA fallback: gli asset sono serviti da /assets; ogni altra route (es. /metrics,
+# refresh incluso) restituisce index.html così il router React gestisce la pagina.
 if DIST.exists():
-    app.mount("/", StaticFiles(directory=str(DIST), html=True), name="frontend")
+    app.mount("/assets", StaticFiles(directory=str(DIST / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    def spa(full_path: str):
+        f = DIST / full_path
+        if full_path and f.is_file():
+            return FileResponse(f)
+        return FileResponse(DIST / "index.html")
