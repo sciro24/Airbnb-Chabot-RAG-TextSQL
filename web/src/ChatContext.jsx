@@ -1,21 +1,15 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import { streamChat } from "./api.js";
 
-// Stato chat condiviso + persistente (sopravvive allo switch di pagina e al reload).
+// Stato chat condiviso solo in memoria: sopravvive allo switch di pagina, NON al
+// reload/chiusura del browser (persistenza limitata alla sessione dell'app).
 const ChatCtx = createContext(null);
 
-function load(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
-}
-
 export function ChatProvider({ children }) {
-  const [messages, setMessages] = useState(() => load("chat_messages", []));
-  const [scope, setScope] = useState(() => load("chat_scope", null));
+  const [messages, setMessages] = useState([]);
+  const [scope, setScope] = useState(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
-
-  useEffect(() => { localStorage.setItem("chat_messages", JSON.stringify(messages)); }, [messages]);
-  useEffect(() => { localStorage.setItem("chat_scope", JSON.stringify(scope)); }, [scope]);
 
   async function send(text, scopeOverride) {
     if (!text.trim() || busyRef.current) return;

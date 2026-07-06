@@ -123,7 +123,8 @@ button { font-family: inherit; }
 .details pre { white-space: pre-wrap; background: var(--bg); border: 1px solid var(--border);
   padding: 10px; border-radius: 10px; overflow-x: auto; }
 .details blockquote { margin: 6px 0; border-left: 3px solid var(--accent-soft); padding-left: 10px; }
-.suggestions { display: flex; flex-direction: column; gap: 14px; padding: 6px 2px; }
+.suggestions { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px;
+  border-top: 1px solid var(--border); background: var(--card); max-height: 45%; overflow-y: auto; }
 .sugg-intro { margin: 0 0 2px; color: var(--muted); font-size: 13px; }
 .sugg-group { display: flex; flex-direction: column; gap: 7px; }
 .sugg-title { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;

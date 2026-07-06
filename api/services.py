@@ -84,7 +84,9 @@ _STOP = {"a", "e", "i", "o", "il", "la", "le", "lo", "gli", "un", "una", "uno", 
          "della", "dei", "delle", "con", "per", "in", "su", "da", "che", "non", "si", "ci",
          "al", "alla", "the", "and", "with", "of", "in", "near", "room", "rooms", "apartment",
          "apt", "flat", "house", "home", "casa", "roma", "rome", "studio", "cozy", "b&b",
-         "alloggio", "appartamento", "stanza", "cosa", "dove", "prezzo", "trova", "dicono"}
+         "alloggio", "appartamento", "stanza", "cosa", "dove", "prezzo", "trova", "dicono",
+         "villa", "suite", "loft", "attico", "residenza", "residence", "palazzo", "guesthouse",
+         "camera", "monolocale", "bilocale", "dell", "sull", "che", "come"}
 
 
 def _tokens(s: str) -> list[str]:
