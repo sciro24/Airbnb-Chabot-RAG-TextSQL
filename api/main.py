@@ -93,21 +93,20 @@ def _plan(query: str, scope: dict | None):
         return meta, llm_client.generate_stream(nl_prompt, system=analytics_core.NL_SYSTEM, temperature=0.2)
 
     if intent == "rag":
-        # Alloggio: da scope esplicito (click mappa) o dal nome citato nella domanda.
+        # Priorità ambito: scope esplicito > quartiere citato > alloggio citato per nome.
         listing = None
+        nbh = None
         if scope and scope.get("kind") == "listing":
             listing = {"id": int(scope["listing_id"]), "name": scope.get("label")}
-        elif not scope:
-            m = services.resolve_listing(query)
-            if m:
-                listing = {"id": m["id"], "name": m["name"]}
-
-        nbh = None
-        if not listing:
-            if scope and scope.get("kind") == "neighbourhood":
-                nbh = scope.get("neighbourhood")
-            elif not scope:
-                nbh = services.match_neighbourhood(query, services.neighbourhoods())
+        elif scope and scope.get("kind") == "neighbourhood":
+            nbh = scope.get("neighbourhood")
+        else:
+            # nessuno scope: prima un quartiere citato (anche 'ostia'), poi un nome alloggio
+            nbh = services.match_neighbourhood(query, services.neighbourhoods())
+            if not nbh:
+                m = services.resolve_listing(query)
+                if m:
+                    listing = {"id": m["id"], "name": m["name"]}
 
         if listing:
             contexts, prompt = rag_core.retrieve(query, listing_id=listing["id"], listing_name=listing["name"])
@@ -131,8 +130,9 @@ def _plan(query: str, scope: dict | None):
     return {"intent": intent}, llm_client.generate_stream(query, system=CONV_SYSTEM, temperature=0.5)
 
 
-# Cache risposte per (query, scope): domande ripetute non ricalcolano.
+# Cache risposte per (query, scope): domande ripetute non ricalcolano. Cap con eviction FIFO.
 _RESP_CACHE: dict[str, dict] = {}
+_CACHE_MAX = 300
 
 
 def _chat_events(query: str, scope: dict | None):
@@ -154,6 +154,8 @@ def _chat_events(query: str, scope: dict | None):
         answer += chunk
         yield _sse("token", {"text": chunk})
     _RESP_CACHE[key] = {"meta": meta, "answer": answer}
+    if len(_RESP_CACHE) > _CACHE_MAX:  # eviction FIFO (dict mantiene ordine inserimento)
+        _RESP_CACHE.pop(next(iter(_RESP_CACHE)))
     yield _sse("done", {})
 
 

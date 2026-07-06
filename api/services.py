@@ -62,12 +62,17 @@ def geojson() -> dict:
     return json.loads((ASSETS / "rome_neighbourhoods.geojson").read_text())
 
 
+_NBH_SHORT_OK = {"eur"}  # nomi brevi di municipio comunque validi
+
+
 def match_neighbourhood(query: str, nbhs: list[str]) -> str | None:
-    """Trova un municipio citato nel testo (ignora il prefisso in numeri romani)."""
-    q = query.lower()
+    """Trova un municipio citato: matcha una parola-chiave del nome (es. 'ostia' -> 'X Ostia/Acilia')."""
+    q = set(re.findall(r"[a-zàèéìòùáéíóú]+", query.lower()))
     for n in nbhs:
-        core_name = n.split(" ", 1)[-1].lower()
-        if core_name and core_name in q:
+        # scompone "X Ostia/Acilia" -> [x, ostia, acilia]; tiene i token distintivi
+        toks = [t for t in re.split(r"[ /]", n.lower()) if len(t) >= 4 or t in _NBH_SHORT_OK]
+        toks = [t for t in toks if t != "san"]  # troppo generico da solo
+        if any(t in q for t in toks):
             return n
     return None
 

@@ -1,8 +1,51 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Send, X, Home, MapPin, Trash2 } from "lucide-react";
+import { Send, X, Home, MapPin, Trash2, BarChart3, MessageSquareText } from "lucide-react";
 import { useChat } from "../ChatContext.jsx";
+
+// Domande di esempio per dare spunti a chi non sa cosa chiedere.
+const EXAMPLES = {
+  analytics: {
+    icon: <BarChart3 size={15} />,
+    title: "Analisi sui dati",
+    items: [
+      "Qual è il prezzo medio per tipo di stanza?",
+      "Prezzo medio all'Eur",
+      "Quali sono i 5 quartieri con più annunci?",
+      "Prezzo massimo e minimo a Monte Verde",
+      "Quanti host hanno più di 5 annunci?",
+    ],
+  },
+  rag: {
+    icon: <MessageSquareText size={15} />,
+    title: "Recensioni degli ospiti",
+    items: [
+      "Com'è la zona dell'Eur, è tranquilla?",
+      "Gli ospiti si lamentano del rumore?",
+      "Cosa dicono le recensioni su pulizia e host?",
+      "Le recensioni menzionano la vicinanza ai mezzi?",
+    ],
+  },
+};
+
+function Suggestions({ onPick }) {
+  return (
+    <div className="suggestions">
+      <p className="sugg-intro">Non sai da dove iniziare? Prova una di queste domande:</p>
+      {Object.values(EXAMPLES).map((g) => (
+        <div key={g.title} className="sugg-group">
+          <div className="sugg-title">{g.icon} {g.title}</div>
+          <div className="sugg-chips">
+            {g.items.map((q) => (
+              <button key={q} onClick={() => onPick(q)}>{q}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function ScopeBanner({ scope, onClear }) {
   let icon = null, label = "tutta Roma";
@@ -59,6 +102,7 @@ export default function Chat({ neighbourhoods }) {
         )}
       </div>
       <div className="messages">
+        {messages.length === 0 && <Suggestions onPick={(q) => send(q)} />}
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
             {m.role === "assistant" && m.intent && <div className="intent">{m.intent}</div>}

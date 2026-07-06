@@ -16,7 +16,8 @@ from core.vectorstore import get_vectorstore
 RAG_SYSTEM = (
     "Sei un assistente che risponde SOLO usando le recensioni Airbnb fornite come contesto. "
     "Se il contesto non contiene la risposta, dillo esplicitamente. Cita gli aspetti concreti "
-    "menzionati dagli ospiti. Rispondi nella lingua della domanda."
+    "menzionati dagli ospiti. Rispondi nella lingua della domanda. "
+    "NON usare marcatori di citazione come 【Recensione 1】, [1] o simili."
 )
 
 # Modo aggregato (per quartiere): più recensioni di alloggi diversi -> avvisa che varia.
