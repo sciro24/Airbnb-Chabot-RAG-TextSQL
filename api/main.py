@@ -79,18 +79,20 @@ def _ctx_view(contexts: list[dict]) -> list[dict]:
              "text": c.get("chunk_text", "")[:400]} for c in contexts]
 
 
-def _chat_events(query: str, scope: dict | None):
-    """Generatore SSE: evento `meta` con i metadati, poi `token`, poi `done`."""
+CONV_SYSTEM = ("Sei l'assistente di un'app di analisi Airbnb su Roma. Rispondi breve e invita "
+               "a fare domande sui dati (prezzi, quartieri, recensioni).")
+
+
+def _plan(query: str, scope: dict | None):
+    """Instrada la domanda. Ritorna (meta_dict, iteratore di chunk di testo)."""
     intent = intent_classifier.classify(query)
 
     if intent == "analytics":
         res, nl_prompt = analytics_core.prepare(query)
-        yield _sse("meta", {"intent": intent, "sql": res.sql,
-                            "row_count": res.row_count, "preview": res.preview})
-        for chunk in llm_client.generate_stream(nl_prompt, system=analytics_core.NL_SYSTEM, temperature=0.2):
-            yield _sse("token", {"text": chunk})
+        meta = {"intent": intent, "sql": res.sql, "row_count": res.row_count, "preview": res.preview}
+        return meta, llm_client.generate_stream(nl_prompt, system=analytics_core.NL_SYSTEM, temperature=0.2)
 
-    elif intent == "rag":
+    if intent == "rag":
         # Alloggio: da scope esplicito (click mappa) o dal nome citato nella domanda.
         listing = None
         if scope and scope.get("kind") == "listing":
@@ -108,36 +110,50 @@ def _chat_events(query: str, scope: dict | None):
                 nbh = services.match_neighbourhood(query, services.neighbourhoods())
 
         if listing:
-            contexts, prompt = rag_core.retrieve(
-                query, listing_id=listing["id"], listing_name=listing["name"])
-            yield _sse("meta", {"intent": intent, "contexts": _ctx_view(contexts), "listing": listing["name"]})
+            contexts, prompt = rag_core.retrieve(query, listing_id=listing["id"], listing_name=listing["name"])
+            meta = {"intent": intent, "contexts": _ctx_view(contexts), "listing": listing["name"]}
             if not contexts:
-                yield _sse("token", {"text": f"Non ci sono recensioni disponibili per «{listing['name']}»."})
-            else:
-                for chunk in llm_client.generate_stream(prompt, system=rag_core.RAG_SYSTEM_LISTING, temperature=0.3):
-                    yield _sse("token", {"text": chunk})
+                return meta, iter([f"Non ci sono recensioni disponibili per «{listing['name']}»."])
+            return meta, llm_client.generate_stream(prompt, system=rag_core.RAG_SYSTEM_LISTING, temperature=0.3)
 
-        elif nbh:
+        if nbh:
             contexts, prompt = rag_core.retrieve(query, neighbourhood=nbh, top_k=40, rerank_k=8)
-            yield _sse("meta", {"intent": intent, "contexts": _ctx_view(contexts), "neighbourhood": nbh})
-            for chunk in llm_client.generate_stream(prompt, system=rag_core.RAG_SYSTEM_AGG, temperature=0.3):
-                yield _sse("token", {"text": chunk})
+            meta = {"intent": intent, "contexts": _ctx_view(contexts), "neighbourhood": nbh}
+            return meta, llm_client.generate_stream(prompt, system=rag_core.RAG_SYSTEM_AGG, temperature=0.3)
 
-        else:  # troppo generica: chiedi il quartiere
-            yield _sse("meta", {"intent": intent, "clarify": True,
-                                "neighbourhoods": services.neighbourhoods()})
-            yield _sse("token", {"text": (
-                "La domanda è ampia per un'intera città: le recensioni variano molto da zona a "
-                "zona e da alloggio ad alloggio. Su quale **quartiere** vuoi concentrarti? "
-                "(oppure scegli un annuncio dalla mappa)")})
+        # troppo generica: chiedi il quartiere
+        meta = {"intent": intent, "clarify": True, "neighbourhoods": services.neighbourhoods()}
+        return meta, iter([
+            "La domanda è ampia per un'intera città: le recensioni variano molto da zona a zona e "
+            "da alloggio ad alloggio. Su quale **quartiere** vuoi concentrarti? "
+            "(oppure scegli un annuncio dalla mappa)"])
 
-    else:  # conversational
-        yield _sse("meta", {"intent": intent})
-        sys_p = ("Sei l'assistente di un'app di analisi Airbnb su Roma. Rispondi breve e invita "
-                 "a fare domande sui dati (prezzi, quartieri, recensioni).")
-        for chunk in llm_client.generate_stream(query, system=sys_p, temperature=0.5):
-            yield _sse("token", {"text": chunk})
+    return {"intent": intent}, llm_client.generate_stream(query, system=CONV_SYSTEM, temperature=0.5)
 
+
+# Cache risposte per (query, scope): domande ripetute non ricalcolano.
+_RESP_CACHE: dict[str, dict] = {}
+
+
+def _chat_events(query: str, scope: dict | None):
+    """Generatore SSE: `meta`, poi `token`, poi `done`. Con cache su (query, scope)."""
+    key = query.strip().lower() + "|" + json.dumps(scope, sort_keys=True)
+    cached = _RESP_CACHE.get(key)
+    if cached is not None:
+        METRICS.record_cache(True)
+        yield _sse("meta", {**cached["meta"], "cached": True})
+        yield _sse("token", {"text": cached["answer"]})
+        yield _sse("done", {})
+        return
+
+    METRICS.record_cache(False)
+    meta, tokens = _plan(query, scope)
+    yield _sse("meta", meta)
+    answer = ""
+    for chunk in tokens:
+        answer += chunk
+        yield _sse("token", {"text": chunk})
+    _RESP_CACHE[key] = {"meta": meta, "answer": answer}
     yield _sse("done", {})
 
 

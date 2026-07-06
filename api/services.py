@@ -74,28 +74,34 @@ def match_neighbourhood(query: str, nbhs: list[str]) -> str | None:
 
 import re
 
-# Parole poco distintive da ignorare nel match del nome alloggio.
-_STOP = {"room", "rooms", "apartment", "apt", "flat", "house", "home", "casa", "roma",
-         "rome", "near", "the", "with", "and", "studio", "cozy", "central", "centro",
-         "di", "del", "della", "alloggio", "appartamento", "stanza", "dicono", "prezzo",
-         "dove", "trova", "cosa", "quale", "come", "info", "informazioni"}
+# Parole comuni da ignorare quando si valuta se un n-gram è "distintivo".
+_STOP = {"a", "e", "i", "o", "il", "la", "le", "lo", "gli", "un", "una", "uno", "di", "del",
+         "della", "dei", "delle", "con", "per", "in", "su", "da", "che", "non", "si", "ci",
+         "al", "alla", "the", "and", "with", "of", "in", "near", "room", "rooms", "apartment",
+         "apt", "flat", "house", "home", "casa", "roma", "rome", "studio", "cozy", "b&b",
+         "alloggio", "appartamento", "stanza", "cosa", "dove", "prezzo", "trova", "dicono"}
 
 
-def _sig_words(s: str) -> set[str]:
-    return {w for w in re.findall(r"[a-zàèéìòùáéíóú0-9]+", s.lower()) if len(w) >= 3 and w not in _STOP}
+def _tokens(s: str) -> list[str]:
+    return [w for w in re.findall(r"[a-z0-9àèéìòùáéíóú&]+", s.lower()) if w]
 
 
 def resolve_listing(query: str) -> dict | None:
-    """Trova l'alloggio citato per nome nella domanda (match per parole significative)."""
-    qw = _sig_words(query)
-    if not qw:
-        return None
-    best, best_score = None, 0
+    """Trova l'alloggio citato per NOME: un n-gram (>=2 parole, non tutto comune) del nome
+    dev'essere presente come sottostringa nella domanda. Evita falsi positivi su parole comuni."""
+    q = " " + " ".join(_tokens(query)) + " "
+    best, best_len = None, 0
     for l in listings_with_reviews():
-        score = len(qw & _sig_words(l["name"]))
-        if score > best_score:
-            best, best_score = l, score
-    return best if best_score >= 1 else None
+        words = _tokens(l["name"])
+        for n in (5, 4, 3, 2):  # dal più lungo al più corto
+            for i in range(len(words) - n + 1):
+                gram = words[i:i + n]
+                if all(w in _STOP for w in gram):
+                    continue  # n-gram tutto parole comuni -> non distintivo
+                phrase = " ".join(gram)
+                if f" {phrase} " in q and len(phrase) > best_len:
+                    best, best_len = l, len(phrase)
+    return best
 
 
 def health(probe: bool = False) -> dict:
