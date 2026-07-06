@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -82,10 +83,19 @@ def _ctx_view(contexts: list[dict]) -> list[dict]:
 CONV_SYSTEM = ("Sei l'assistente di un'app di analisi Airbnb su Roma. Rispondi breve e invita "
                "a fare domande sui dati (prezzi, quartieri, recensioni).")
 
+# Parole chiave analitiche (numeri/prezzi): con ambito attivo mantengono l'intent analytics.
+_ANALYTICS_KW = re.compile(
+    r"prezz|medi|quant|numero|conteggio|massim|minim|percentu|costo|economic|caro|"
+    r"disponibil|notti|recension.*(quant|numero)|più caro|più costoso", re.IGNORECASE)
+
 
 def _plan(query: str, scope: dict | None):
     """Instrada la domanda. Ritorna (meta_dict, iteratore di chunk di testo)."""
     intent = intent_classifier.classify(query)
+    # Con un ambito attivo (annuncio/quartiere), a meno di parole chiave numeriche/di prezzo,
+    # la domanda riguarda le recensioni di quel contesto -> RAG.
+    if scope and intent != "rag" and not _ANALYTICS_KW.search(query):
+        intent = "rag"
 
     if intent == "analytics":
         res, nl_prompt = analytics_core.prepare(query)
@@ -147,12 +157,20 @@ def _chat_events(query: str, scope: dict | None):
         return
 
     METRICS.record_cache(False)
-    meta, tokens = _plan(query, scope)
-    yield _sse("meta", meta)
-    answer = ""
-    for chunk in tokens:
-        answer += chunk
-        yield _sse("token", {"text": chunk})
+    answer, meta = "", None
+    try:
+        meta, tokens = _plan(query, scope)
+        yield _sse("meta", meta)
+        for chunk in tokens:
+            answer += chunk
+            yield _sse("token", {"text": chunk})
+    except Exception as exc:  # nessun errore deve interrompere lo stream a metà
+        METRICS.record_error("chat")
+        if meta is None:
+            yield _sse("meta", {"intent": "error"})
+        yield _sse("token", {"text": "Non riesco a rispondere a questa domanda. Prova a riformularla."})
+        yield _sse("done", {})
+        return
     _RESP_CACHE[key] = {"meta": meta, "answer": answer}
     if len(_RESP_CACHE) > _CACHE_MAX:  # eviction FIFO (dict mantiene ordine inserimento)
         _RESP_CACHE.pop(next(iter(_RESP_CACHE)))

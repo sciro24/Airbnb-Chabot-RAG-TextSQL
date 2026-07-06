@@ -85,6 +85,7 @@ function Details({ meta }) {
 export default function Chat({ neighbourhoods }) {
   const { messages, scope, setScope, busy, send, clearChat } = useChat();
   const [input, setInput] = useState("");
+  const [showSugg, setShowSugg] = useState(false);
   const endRef = useRef(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -102,7 +103,9 @@ export default function Chat({ neighbourhoods }) {
         )}
       </div>
       <div className="messages">
-        {messages.length === 0 && <Suggestions onPick={(q) => send(q)} />}
+        {(messages.length === 0 || showSugg) && (
+          <Suggestions onPick={(q) => { send(q); setShowSugg(false); }} />
+        )}
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
             {m.role === "assistant" && m.intent && <div className="intent">{m.intent}</div>}
@@ -133,6 +136,8 @@ export default function Chat({ neighbourhoods }) {
       <form className="composer" onSubmit={(e) => { e.preventDefault(); send(input); setInput(""); }}>
         <input value={input} onChange={(e) => setInput(e.target.value)}
           placeholder="Chiedi prezzi, quartieri, recensioni…" disabled={busy} />
+        <button type="button" className={`sugg-btn ${showSugg ? "active" : ""}`}
+          title="Domande di esempio" onClick={() => setShowSugg((s) => !s)}>/</button>
         <button disabled={busy} title="Invia"><Send size={18} /></button>
       </form>
     </div>

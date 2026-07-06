@@ -46,9 +46,11 @@ button { font-family: inherit; }
 }
 .topbar .links a.active { color: var(--accent); background: var(--accent-soft); }
 .theme-btn {
-  background: transparent; border: 1px solid var(--border); border-radius: 999px;
-  padding: 6px 10px; cursor: pointer; font-size: 15px; margin-left: 6px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 10px; cursor: pointer; margin-left: 6px; color: var(--ink);
+  display: inline-flex; align-items: center;
 }
+.theme-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ---------- Home ---------- */
 .home { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 16px 20px 20px; gap: 14px; }
@@ -141,7 +143,9 @@ button { font-family: inherit; }
 .composer button { padding: 0 16px; border-radius: 12px; border: none; background: var(--accent);
   color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .composer button:disabled { opacity: 0.5; cursor: default; }
-.theme-btn { display: inline-flex; align-items: center; }
+.sugg-btn { padding: 0 14px !important; background: var(--card) !important; color: var(--muted) !important;
+  border: 1px solid var(--border) !important; font-weight: 700 !important; font-size: 16px; }
+.sugg-btn:hover, .sugg-btn.active { color: var(--accent) !important; border-color: var(--accent) !important; }
 
 /* dots */
 .dots span { display: inline-block; width: 7px; height: 7px; margin: 0 3px; border-radius: 50%;
