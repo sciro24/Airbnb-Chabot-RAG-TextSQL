@@ -24,46 +24,32 @@ LLM intent classifier:
 The map on the left shows every listing that has reviews in the vector index, grouped by the
 15 official municipi. Users can click a listing to scope the chat to that specific property,
 select a district from the dropdown to scope by neighbourhood, or ask a listing by name
-("What do guests say about *Santini Home*?"). When a question is too broad for the whole city,
+("What do guests say about _Santini Home_?"). When a question is too broad for the whole city,
 the assistant asks the user to pick a district first.
 
-## Architecture
+## Pipeline
 
-```
-Inside Airbnb CSVs
-       │  Databricks notebooks (databricks/, PySpark)
-       ▼
-Unity Catalog (Delta)   bronze_* → silver_* → gold_review_chunks   +  view listings_enriched
-       │                                   │
-       ▼ Vector Search (Delta Sync,        ▼ SQL Warehouse
-         embeddings computed server-side)    (Text-to-SQL)
-   review_chunks_index                     listings_enriched
-       ▲                                     ▲
-       │                                     │
-   FastAPI (api/)  ──────────────────────────┘   imports core.* in-process
-       │  intent → rag_core | analytics_core → LLM serving endpoint (SSE streaming)
-       ▼
-   React SPA (web/, Vite + Leaflet + Recharts)   served as static build by FastAPI
-```
+![Pipeline](docs/screenshots/pipeline.png)
 
-| Layer | Technology |
-|---|---|
-| Batch ETL | PySpark notebooks on Databricks (serverless) |
-| Storage | Unity Catalog Delta tables; UC Volume for raw files |
-| Retrieval | Databricks Vector Search (Delta Sync, server-side embeddings) |
-| Analytics | Databricks SQL Warehouse (Statement Execution API) |
-| Reranker | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (local, MPS/CPU) |
+| Layer            | Technology                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Batch ETL        | PySpark notebooks on Databricks (serverless)                                               |
+| Storage          | Unity Catalog Delta tables; UC Volume for raw files                                        |
+| Retrieval        | Databricks Vector Search (Delta Sync, server-side embeddings)                              |
+| Analytics        | Databricks SQL Warehouse (Statement Execution API)                                         |
+| Reranker         | `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (local, MPS/CPU)                              |
 | LLM + embeddings | Databricks serving endpoints (`databricks-gpt-oss-20b`, `databricks-qwen3-embedding-0-6b`) |
-| Backend | FastAPI (REST + SSE streaming); serves the frontend build |
-| Frontend | React + Vite + Leaflet (map) + Recharts (metrics) |
-| Config | `.env` via pydantic-settings |
+| Backend          | FastAPI (REST + SSE streaming); serves the frontend build                                  |
+| Frontend         | React + Vite + Leaflet (map) + Recharts (metrics)                                          |
+| Config           | `.env` via pydantic-settings                                                               |
 
 ## How it works
 
 **Ingestion & preparation** (`databricks/` notebooks, run on Databricks):
+
 1. `01_ingest_clean` — reads the raw CSVs from a UC Volume, casts columns by name (robust to
    schema drift), cleans prices (drops out-of-range outliers), and samples reviews with a
-   **stratified strategy per district** (top *K* listings per municipio, *N* reviews each) so
+   **stratified strategy per district** (top _K_ listings per municipio, _N_ reviews each) so
    the map is balanced across neighbourhoods instead of dominated by the city centre. Writes
    `bronze_*` and `silver_*` Delta tables.
 2. `02_chunk` — turns each review into one chunk with listing metadata; writes
@@ -73,6 +59,7 @@ Unity Catalog (Delta)   bronze_* → silver_* → gold_review_chunks   +  view l
    computes the embeddings server-side from `chunk_text`.
 
 **Serving** (`api/` + `core/`, run locally or anywhere with network access to Databricks):
+
 - `intent_classifier` routes the query. `analytics_core` generates SELECT-only SQL (validated
   against an allowlist) and runs it on the SQL Warehouse. `rag_core` queries Vector Search,
   re-ranks with the local cross-encoder, and builds a grounded prompt. `llm_client` streams the
