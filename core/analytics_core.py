@@ -86,9 +86,14 @@ def get_schema_description(settings: Settings) -> str:
                 ) if nbhs else ""
     return (
         f"Tabella: {settings.analytics_table} (contiene SOLO alloggi di Roma)\n"
-        "Colonne principali: id, name (nome alloggio), host_name, neighbourhood_display "
+        "UNICHE colonne disponibili: id, name (nome alloggio), host_name, neighbourhood_display "
         "(quartiere/municipio), latitude, longitude, room_type, price (double, EUR), "
-        "minimum_nights, number_of_reviews, reviews_per_month, availability_365.\n"
+        "minimum_nights, number_of_reviews (conteggio recensioni), reviews_per_month, "
+        "availability_365 (giorni disponibili all'anno).\n"
+        "NON esistono colonne per: punteggio/rating/qualità, stato superhost, date specifiche di "
+        "disponibilità (es. Natale), servizi (wifi, parcheggio), distanza da monumenti. Se la "
+        "domanda richiede uno di questi dati NON inventare colonne: rispondi con "
+        "`SELECT 'NON_DISPONIBILE' AS info`.\n"
         "Per un alloggio citato per NOME usa `name ILIKE '%<nome>%'` (per 'dove si trova' "
         "restituisci neighbourhood_display, latitude, longitude).\n"
         + nbh_line
@@ -116,6 +121,8 @@ NL_SYSTEM = (
     "Formatti in linguaggio naturale il risultato di una query sui dati Airbnb di Roma. "
     "NON menzionare tabelle, colonne, SQL, schema o dettagli tecnici interni. "
     "Tutti i dati riguardano SOLO Roma: non aggiungere avvisi sul fatto che non siano di Roma. "
+    "Se il risultato è 'NON_DISPONIBILE', spiega gentilmente che quel dato non è presente nel "
+    "dataset (es. non ci sono punteggi di qualità o info sui servizi). "
     "Rispondi conciso, grounded sui numeri, nella lingua della domanda."
 )
 
