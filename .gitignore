@@ -5,12 +5,21 @@ Thumbs.db
 
 # ---- Claude / assistant files ----
 .claude/
-CLAUDE.md
-*.claude.md
 .claude-mem/
 .anthropic/
 .aider*
 .cursor/
+
+# ---- Documenti: tutti i .md tranne il README, tutti i PDF, materiale relazione ----
+*.md
+!README.md
+*.pdf
+relazione primo progetto/
+relazione*/
+*.tex
+*.aux
+*.toc
+*.synctex.gz
 
 # ---- Python ----
 __pycache__/
