@@ -1,0 +1,23 @@
+{
+  "_comment": "Query set etichettato con metodologia known-item retrieval: ogni query e' derivata (parafrasata) dalla recensione di un annuncio noto; relevant_listing_ids contiene quell'annuncio. La rilevanza e' a livello di listing_id. Solo annunci con id < 2^53 per evitare perdite di precisione.",
+  "queries": [
+    {"id": "q01", "query": "appartamento pulito al quinto piano con ascensore e balcone, strada tranquilla a cinque minuti a piedi dalla metropolitana, host Marta gentile, ottimo rapporto qualita prezzo", "relevant_listing_ids": ["9840429"]},
+    {"id": "q02", "query": "residence moderno vicino alla stazione Ostiense con molti ristoranti e caffe a prezzi onesti nei dintorni", "relevant_listing_ids": ["31410972"]},
+    {"id": "q03", "query": "host Anna e Walter incredibilmente reattivi, check-in anticipato e check-out posticipato, mandavano continuamente consigli su cosa visitare, tutto raggiungibile a piedi", "relevant_listing_ids": ["3780547"]},
+    {"id": "q04", "query": "host Fabrizio e Bruna accoglienti e premurosi che incarnano lo spirito di Airbnb, appartamento colorato in un quartiere vero di Roma, rimasto sveglio fino all'una di notte per aiutarci col check-in", "relevant_listing_ids": ["21756582"]},
+    {"id": "q05", "query": "villa dove abbiamo dormito comodamente in nove persone, in stile italiano antico", "relevant_listing_ids": ["5105201"]},
+    {"id": "q06", "query": "casa pulita e confortevole in posizione comoda per spostarsi, host Alessandra", "relevant_listing_ids": ["14134631"]},
+    {"id": "q07", "query": "uno spazio per ritrovare pace e tranquillita a due passi dalla citta, con host gentilissima", "relevant_listing_ids": ["32352761"]},
+    {"id": "q08", "query": "host Elvio accogliente, alloggio immacolato con qualche prodotto per la colazione, a distanza percorribile a piedi", "relevant_listing_ids": ["712160"]},
+    {"id": "q09", "query": "proprietari gentili con orari flessibili che mi hanno rispedito a casa un capo dimenticato in camera", "relevant_listing_ids": ["11331877"]},
+    {"id": "q10", "query": "soggiorno al Castello del Principe, castello dell'undicesimo secolo sulla collina fuori Roma, piscina immacolata non riscaldata, lenzuola fresche e pulizia a meta soggiorno, tramonti stupendi", "relevant_listing_ids": ["32346073"]},
+    {"id": "q11", "query": "camera d'albergo con colazione molto buona e ricca, Suor Maria alla reception", "relevant_listing_ids": ["32154200"]},
+    {"id": "q12", "query": "piccolo appartamento perfetto per il nostro soggiorno a Roma, a soli dieci minuti a piedi dalla stazione della metro per raggiungere la parte principale di Roma", "relevant_listing_ids": ["28977392"]},
+    {"id": "q13", "query": "posto accogliente con un piccolo spazio esterno, ma un problema alla doccia del bagno", "relevant_listing_ids": ["16984260"]},
+    {"id": "q14", "query": "appartamento di Dhomes spazioso e pulitissimo per una famiglia di nove persone, vicino a Piazza del Popolo, a venti minuti a piedi da Piazza di Spagna e Fontana di Trevi", "relevant_listing_ids": ["17689634"]},
+    {"id": "q15", "query": "alloggio ideale per tre coppie, ognuna con il proprio bagno, con cucina attrezzata e caffe al piano di sotto", "relevant_listing_ids": ["3316028"]},
+    {"id": "q16", "query": "appartamento di Cristina bellissimo, tranquillo e pulitissimo, ottimo per una luna di miele, vicino a metro e ristoranti", "relevant_listing_ids": ["10695820"]},
+    {"id": "q17", "query": "host Giovanni accogliente e disponibile, quartiere tranquillo vicino alle principali attrazioni turistiche", "relevant_listing_ids": ["1040846"]},
+    {"id": "q18", "query": "camera con vista stupenda sulla Basilica, patio con tende oscuranti e piccolo ascensore, host Sergio rapidissimo nella comunicazione, ambiente amichevole e tranquillo dove rilassarsi", "relevant_listing_ids": ["15327607"]}
+  ]
+}

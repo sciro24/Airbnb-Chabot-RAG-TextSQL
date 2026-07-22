@@ -16,28 +16,31 @@ from core.config import get_settings
 from core.vectorstore import get_vectorstore
 
 
-def _rel(hit: dict, relevant: set[int]) -> int:
-    try:
-        return int(int(hit.get("listing_id")) in relevant)
-    except (TypeError, ValueError):
-        return 0
+def _norm(x) -> str:
+    """Normalizza un listing_id a stringa (robusto a int/float/str, evita perdita di precisione)."""
+    s = str(x).strip()
+    return s[:-2] if s.endswith(".0") else s
 
 
-def recall_at_k(hits: list[dict], relevant: set[int], k: int) -> float:
+def _rel(hit: dict, relevant: set[str]) -> int:
+    return int(_norm(hit.get("listing_id")) in relevant)
+
+
+def recall_at_k(hits: list[dict], relevant: set[str], k: int) -> float:
     if not relevant:
         return 0.0
-    found = {int(h["listing_id"]) for h in hits[:k] if _rel(h, relevant)}
+    found = {_norm(h["listing_id"]) for h in hits[:k] if _rel(h, relevant)}
     return len(found) / len(relevant)
 
 
-def mrr(hits: list[dict], relevant: set[int]) -> float:
+def mrr(hits: list[dict], relevant: set[str]) -> float:
     for i, h in enumerate(hits, 1):
         if _rel(h, relevant):
             return 1.0 / i
     return 0.0
 
 
-def ndcg_at_k(hits: list[dict], relevant: set[int], k: int) -> float:
+def ndcg_at_k(hits: list[dict], relevant: set[str], k: int) -> float:
     dcg = sum(_rel(h, relevant) / math.log2(i + 1) for i, h in enumerate(hits[:k], 1))
     ideal = sum(1.0 / math.log2(i + 1) for i in range(1, min(len(relevant), k) + 1))
     return dcg / ideal if ideal else 0.0
@@ -48,7 +51,7 @@ def run(query_set_path: str, k: int = 5, top_k: int = 20) -> dict:
     vs = get_vectorstore(get_settings())
     recalls, mrrs, ndcgs = [], [], []
     for q in data["queries"]:
-        relevant = set(q.get("relevant_listing_ids", []))
+        relevant = {_norm(x) for x in q.get("relevant_listing_ids", [])}
         if not relevant:
             continue
         hits = vs.search(q["query"], top_k=top_k)

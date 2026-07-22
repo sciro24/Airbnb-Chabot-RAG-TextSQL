@@ -28,7 +28,9 @@ def judge(query: str, answer: str, contexts: list[str]) -> dict:
     prompt = (
         f"Domanda:\n{query}\n\nContesto:\n{ctx}\n\nRisposta del sistema:\n{answer}\n\nJSON:"
     )
-    raw = llm_client.generate(prompt, system=JUDGE_SYSTEM, temperature=0.0, max_tokens=60)
+    # max_tokens alto: il giudice e' un reasoning model, con budget basso esaurisce il
+    # ragionamento prima di emettere il JSON finale.
+    raw = llm_client.generate(prompt, system=JUDGE_SYSTEM, temperature=0.0, max_tokens=2048)
     f = re.search(r'"faithfulness"\s*:\s*([1-5])', raw)
     r = re.search(r'"relevance"\s*:\s*([1-5])', raw)
     return {

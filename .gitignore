@@ -19,7 +19,14 @@ relazione*/
 *.tex
 *.aux
 *.toc
+*.out
 *.synctex.gz
+
+# ---- Screenshot: solo quelli usati dal README ----
+docs/screenshots/*
+!docs/screenshots/home.png
+!docs/screenshots/pipeline.png
+!docs/screenshots/metrics.png
 
 # ---- Python ----
 __pycache__/
