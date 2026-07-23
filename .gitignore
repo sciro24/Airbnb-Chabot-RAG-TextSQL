@@ -96,6 +96,9 @@ scratchpad/
 evaluation/results/
 *.bench.json
 
+# ---- Scaffold superato dal query_set.json reale, non referenziato da codice/README ----
+evaluation/query_set.example.json
+
 # ---- Metriche persistite ----
 .metrics.json
 
