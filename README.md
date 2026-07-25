@@ -105,21 +105,6 @@ databricks tokens create --comment airbnb-rag -p trial     # copy into DATABRICK
 python -m scripts.check_databricks                          # verify endpoints + credits
 ```
 
-### Build the data (Databricks)
-
-Upload the raw files to a UC Volume and the notebooks to the workspace, then run them in order:
-
-```bash
-databricks fs mkdir dbfs:/Volumes/workspace/airbnb/raw/rome -p trial
-databricks fs cp data/raw/listings.csv        dbfs:/Volumes/workspace/airbnb/raw/rome/ -p trial
-databricks fs cp data/raw/neighbourhoods.csv  dbfs:/Volumes/workspace/airbnb/raw/rome/ -p trial
-databricks fs cp data/raw/reviews.csv.gz      dbfs:/Volumes/workspace/airbnb/raw/rome/ -p trial
-databricks workspace import-dir databricks /Workspace/Users/<you>/airbnb-rag --overwrite -p trial
-```
-
-Run `01_ingest_clean` → `02_chunk` → `03_analytics` → `04_vector_index`. The widgets on `01`
-(`reviews_per_listing`, `listings_per_neighbourhood`) control coverage and embedding cost.
-
 ### Run the app
 
 ```bash
@@ -129,32 +114,13 @@ uvicorn api.main:app --port 8000      # open http://localhost:8000
 For frontend development with hot reload, run the backend and `cd web && npm run dev` (Vite
 proxies `/api` to port 8000).
 
-## Evaluation
-
-```bash
-python -m evaluation.retrieval_eval  --query-set evaluation/query_set.json --k 5
-python -m evaluation.generation_eval --query-set evaluation/query_set.json
-python -m evaluation.latency_bench   --rag "clean quiet flat" --sql "average price by room type"
-```
-
 `evaluation/query_set.json` contains 18 labelled queries built with a known-item
 methodology: each query paraphrases a real review (including distinctive details) and is
 labelled with the listing it comes from. Latest results on the synced index:
 
-| Metric                        |    @3 |    @5 |   @10 |
-| ----------------------------- | ----: | ----: | ----: |
-| Recall                        | 0.889 | 1.000 | 1.000 |
-| nDCG                          | 0.862 | 0.929 | 0.983 |
+| Metric |    @3 |    @5 |   @10 |
+| ------ | ----: | ----: | ----: |
+| Recall | 0.889 | 1.000 | 1.000 |
+| nDCG   | 0.862 | 0.929 | 0.983 |
 
 MRR = 0.794 · LLM-as-judge (1–5): faithfulness = 4.83, relevance = 4.89
-
-## Notes and limitations
-
-- Data is restricted to Rome and to the sampled subset of reviews that is embedded in the
-  vector index; the map shows roughly two thousand balanced listings, not the full inventory.
-- The embedding endpoint used for Vector Search is rate-limited on pay-per-token workspaces,
-  so a full index sync takes on the order of an hour; the Vector Search endpoint has a standing
-  cost while it exists.
-- Generated SQL is untrusted by construction: `analytics_core.validate_and_sanitize` enforces a
-  single SELECT/WITH statement (no DDL/DML) before execution, and the SQL connection is read-only.
-- Secrets live only in `.env`, which is gitignored.
