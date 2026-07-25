@@ -97,14 +97,6 @@ cp .env.example .env         # fill in DATABRICKS_HOST, DATABRICKS_TOKEN, SQL_WA
 cd web && npm install && npm run build && cd ..
 ```
 
-### Connect to Databricks
-
-```bash
-databricks auth login --host https://<workspace>.cloud.databricks.com --profile trial
-databricks tokens create --comment airbnb-rag -p trial     # copy into DATABRICKS_TOKEN
-python -m scripts.check_databricks                          # verify endpoints + credits
-```
-
 ### Run the app
 
 ```bash
